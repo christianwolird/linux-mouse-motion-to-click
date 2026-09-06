@@ -1,0 +1,1 @@
+/dev/input/by-id/usb-Logitech_Gaming_Mouse_G402_6D9241915253-event-mouse
