@@ -1,40 +1,45 @@
-# Mouse movement to clicks
 
-[`remap_mouse.py`](remap_mouse.py) turns movement from one chosen mouse into left
-clicks. Use a second mouse to aim. [`target_mouse.txt`](target_mouse.txt) contains
-only the chosen mouse's device path.
+# Mouse motion to left click (remapper for linux)
+## Overview
+
+The script [`remap_mouse.py`](remap_mouse.py) turns movement events from a chosen mouse into left
+clicks. You'll need another mouse to move the cursor. Run this with:
+```bash
+sudo python3 remap_mouse.py
+```
+
+The file [`target_mouse.txt`](target_mouse.txt) contains your chosen mouse's device path. For example:
+```
+/dev/input/by-id/usb-Logitech_Gaming_Mouse_G402_6D9241915253-event-mouse
+```
+
+
 
 ## Compatibility
 
-For Linux desktops using **Wayland or X11**. Tested on **Ubuntu with Wayland**;
-other Linux distributions and X11 are expected to work but have not been verified.
-The script uses Linux's evdev/uinput interfaces, so it does not run on Windows
+This should work on any Linux desktop using Wayland or X11.
+
+However, this was only tested on **Ubuntu with Wayland**.
+The script uses Linux's `evdev` and `uinput` interfaces. It doesn't run on Windows
 or macOS as written.
 
-Requires Python with evdev installed, access to the physical mouse and
-`/dev/uinput`, and a desktop that recognizes the virtual mouse. Installation
-commands and permissions may differ by distribution. The libinput debouncing
-workaround below may apply on either Wayland or X11 when libinput handles input.
+You'll need Python with `evdev` installed. You might also need to turn off
+`libinput`'s debouncing feature.
 
-## For moderators
+## Remapping script details
 
-All remapping behavior is in **remap_mouse.py**, read from top to bottom:
+All remapping behavior is in [`remap_mouse.py`](remap_mouse.py).
 
-- `remap_events` reads one mouse report at a time. A report groups horizontal and
-  vertical movement together, so diagonal or large movement still earns only
-  one click.
-- The four lines marked **Press**, **Deliver**, **Release**, **Deliver** produce
-  that click. There is no click timer, multiplier, rate cap, or saved click credit.
-- Physical buttons and scrolling pass through. Holding or changing the target
-  mouse's left button suppresses that report's movement click.
-- `main` opens the chosen mouse and a virtual output mouse, waits for Enter,
-  discards setup input, and starts reading. The `with` blocks close the devices
-  on exit, releasing the physical mouse's grab and removing the virtual mouse.
+- `remap_events` reads one mouse event report at a time. Each report creates at most one click.
+- Lines 40-43 actually generate the click by sending a press and release event to a virtual mouse.
+- Any button presses or scrolling on the remapped mouse are not affected.
+- `main` opens both the remapped mouse and the virtual output mouse, waits for the user to hit Enter, and then calls `remap_events`.
+- `Ctrl+C` stops the script. A `with` block releases the remapped mouse's intercept and deletes the virtual mouse.
 
-The script imports Python's `contextlib` and `pathlib`, plus evdev for Linux input
-and output. It does not import anything from `device_diagnostics/` or `tests/`.
+[`remap_mouse.py`](remap_mouse.py) imports Python's `contextlib` and `pathlib`, plus `evdev` for Linux input
+and output. Other than that, the script is standalone. It does not import anything from `device_diagnostics/` or `tests/`. The only other file this script interacts with is [`target_mouse.txt`](target_mouse.txt).
 
-## Run
+## Setup and usage
 
 Install evdev and find your target mouse:
 
@@ -43,33 +48,62 @@ sudo apt install python3-evdev
 sudo python3 device_diagnostics/detect_mice.py
 ```
 
-Put its absolute device path in `target_mouse.txt`, on one line with **no comments
-or quotes**. Prefer a `/dev/input/by-id/...-event-mouse` path; event numbers can
-change after rebooting. The script reads the file beside itself.
+Put device path of your chosen mouse in `target_mouse.txt`, on one line with **no comments
+or quotes**. Use the path that looks like `/dev/input/by-id/...-event-mouse` preferably. The event numbers in the other paths can change after rebooting.
+
+Then run:
 
 ```bash
 sudo python3 remap_mouse.py
 ```
 
-Release mouse buttons, then press Enter in the terminal. **Ctrl+C in that terminal
-stops the script.** Release the aiming mouse's left button while using movement
-clicks. Keep the configured path pointed at your physical target mouse; the
-script uses it directly without validation.
+Press Enter to start remapping. **Ctrl+C in that terminal
+stops the script.** The script has no error handling so beware.
 
-**If rapid clicks are filtered:** users of libinput may need to disable debouncing
-for the virtual mouse in `/etc/libinput/local-overrides.quirks`. See the
-[working configuration and restart step](device_diagnostics/README.md#allow-rapid-clicks-through-libinput).
+## Turn off debouncing if needed
 
-## Optional device tools and development checks
+If this tool only produces clicks when you move the remapped mouse very slowly, then `libinput` might be blocking the click events with its debouncing feature.
 
-- [`device_diagnostics/`](device_diagnostics/README.md): list mice, inspect movement, or measure
-  generated CPS. These tools run separately and are not needed for remapping.
-- [`tests/`](tests/test_remap_mouse.py): checks of the code using fake devices,
-  used during development only.
-  Run with `python3 -m unittest discover -s tests -v`.
-- [`requirements.txt`](requirements.txt): evdev version for a pip installation.
+If this is happening, add the following to `/etc/libinput/local-overrides.quirks`:
 
-Errors, including Ctrl+C, use Python's normal traceback. Share the terminal output
-when debugging. There is no custom error recovery or input-loss detection.
-Linux can buffer input, so reports may arrive late. In testing on this PC, uncapped
-input worked best in Steam Cookie Clicker: roughly 47 accepted CPS without lag.
+```ini
+[mouse_move_click intentional rapid clicks]
+MatchName=mouse_move_click
+ModelBouncingKeys=1
+```
+
+Keep `MatchName` as written: it matches the script's virtual mouse. **Reboot, then
+start the remapper again.** This worked on the author's computer. It doesn't remove the game's
+own 50cps click limit though.
+
+## Optional device diagnostic tools
+
+There's also a few tools that just observe inputs. Run them
+from the top directory; Ctrl+C stops them.
+
+This first script detects all mice connected to your computer and print their details:
+```bash
+sudo python3 device_diagnostics/detect_mice.py
+```
+
+The following prints all mouse events from all mice to the terminal:
+```bash
+sudo python3 device_diagnostics/print_mice_events.py
+```
+
+ And a script for measuring your clicks per second (cps) rate across all mice:
+```bash
+sudo python3 device_diagnostics/show_cps.py
+```
+
+Importantly, **this measures cps before libinput does any debouncing**, so if you're getting low cps in a game or application, you can use this script to check whether the problem is with debouncing or with the raw mouse events.
+
+## Development checks
+
+There are also some [`tests/`](tests/test_remap_mouse.py) which inspect the remapper script using fake devices:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 device_diagnostics/show_cps.py --self-test
+```
+
