@@ -74,7 +74,8 @@ ModelBouncingKeys=1
 
 Keep `MatchName` as written: it matches the script's virtual mouse. **Reboot, then
 start the remapper again.** This worked on the author's computer. It doesn't remove the game's
-own 50cps click limit though.
+own click limit though, which depends on the version. See our
+[version and CPS findings](docs/versions_and_cps_limit_findings.md).
 
 ## Optional device diagnostic tools
 
@@ -106,4 +107,3 @@ There are also some [`tests/`](tests/test_remap_mouse.py) which inspect the rema
 python3 -m unittest discover -s tests -v
 python3 device_diagnostics/show_cps.py --self-test
 ```
-
