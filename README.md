@@ -28,7 +28,8 @@ You'll need Python with `evdev` installed. You might also need to turn off
 
 ## Remapping script details
 
-All remapping behavior is in [`remap_mouse.py`](remap_mouse.py).
+All remapping behavior is in [`remap_mouse.py`](remap_mouse.py). It has no
+configurable minimum delay or click-rate limit.
 
 - `remap_events` reads one mouse event report at a time. Each report creates at most one click.
 - Lines 40-43 actually generate the click by sending a press and release event to a virtual mouse.
@@ -37,7 +38,7 @@ All remapping behavior is in [`remap_mouse.py`](remap_mouse.py).
 - `Ctrl+C` stops the script. A `with` block releases the remapped mouse's intercept and deletes the virtual mouse.
 
 [`remap_mouse.py`](remap_mouse.py) imports Python's `contextlib` and `pathlib`, plus `evdev` for Linux input
-and output. Other than that, the script is standalone. It does not import anything from `device_diagnostics/` or `tests/`. The only other file this script interacts with is [`target_mouse.txt`](target_mouse.txt).
+and output. Other than that, the script is standalone. It does not import anything from `diagonstics/` or `tests/`. The only other file this script interacts with is [`target_mouse.txt`](target_mouse.txt).
 
 ## Setup and usage
 
@@ -45,7 +46,7 @@ Install evdev and find your target mouse:
 
 ```bash
 sudo apt install python3-evdev
-sudo python3 device_diagnostics/detect_mice.py
+sudo python3 diagonstics/detect_mice.py
 ```
 
 Put device path of your chosen mouse in `target_mouse.txt`, on one line with **no comments
@@ -84,26 +85,54 @@ from the top directory; Ctrl+C stops them.
 
 This first script detects all mice connected to your computer and print their details:
 ```bash
-sudo python3 device_diagnostics/detect_mice.py
+sudo python3 diagonstics/detect_mice.py
 ```
 
 The following prints all mouse events from all mice to the terminal:
 ```bash
-sudo python3 device_diagnostics/print_mice_events.py
+sudo python3 diagonstics/print_mice_events.py
 ```
 
  And a script for measuring your clicks per second (cps) rate across all mice:
 ```bash
-sudo python3 device_diagnostics/show_cps.py
+sudo python3 diagonstics/show_cps.py
 ```
 
 Importantly, **this measures cps before libinput does any debouncing**, so if you're getting low cps in a game or application, you can use this script to check whether the problem is with debouncing or with the raw mouse events.
 
+### Click interval distribution
+
+To measure variation in the spacing of clicks, start the remapper first, then run:
+
+```bash
+sudo python3 diagonstics/variance_probe.py
+```
+
+The probe waits for the first completed left click, prints `Started!`, records
+for 10 seconds, then exits. Like `show_cps.py`, it watches all mice and counts a press followed by a
+release, confirmed at the end of the input report. To watch only one mouse, pass
+`--device /dev/input/eventN` using its path from `detect_mice.py`. For remapped
+clicks, choose the virtual `mouse_move_click` device.
+
+It stores each release's observation time in memory as integer monotonic
+nanoseconds and prints no further output until recording finishes. This preserves finer than
+0.01 ms timestamp resolution on typical Linux systems; the reported clock
+resolution is not a guarantee of observation accuracy. Python scheduling and
+evdev read batching affect these times. The probe measures delivery to Python,
+before libinput/browser filtering, rather than hardware timestamps.
+
+The results show total clicks, the number of intervals (one fewer than clicks),
+average, median, minimum and maximum delay, and population standard deviation.
+A column of counts and percentages groups intervals rounded to the nearest
+0.01 ms: `<=3.85`, `3.86`, `3.87`, through `4.14`, and `>=4.15` ms. Statistics
+use unrounded intervals. Ctrl+C cancels; lost input stops the trial with an error.
+
 ## Development checks
 
-There are also some [`tests/`](tests/test_remap_mouse.py) which inspect the remapper script using fake devices:
+The [`tests/`](tests/) check the remapper using fake devices and the variance
+probe using simulated events and clock times:
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 device_diagnostics/show_cps.py --self-test
+python3 diagonstics/show_cps.py --self-test
 ```

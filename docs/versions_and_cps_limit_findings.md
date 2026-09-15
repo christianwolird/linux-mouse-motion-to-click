@@ -1,6 +1,7 @@
 # Cookie Clicker versions and CPS findings
 
-Recorded September 6, 2026; updated September 7, 2026. These are code findings and
+Recorded September 6, 2026; findings updated September 7, 2026; repository references
+updated September 15, 2026. These are code findings and
 observations from testing this remapper, not a guarantee of the clicks per second
 (CPS) another setup will achieve.
 
@@ -87,6 +88,10 @@ timed with a handheld stopwatch, and dividing the net cookie increase by ten.
 They are approximate effective rates, not instrumented handler counts. **The web
 results slightly above 50 CPS are explained by hand-timing error and are not an
 open question.** Raw click rates were measured separately with an external program.
+
+The delay-controlled trials below used `remap_mouse_with_delay.py`, which has
+since been removed. They are retained as historical measurements. The current
+[`remap_mouse.py`](../remap_mouse.py) has no minimum-delay setting or click-rate limit.
 
 ### v1.0466
 
@@ -178,13 +183,13 @@ variation or processing effects, not merely a lower average input rate. At 46
 accepted CPS, the mean accepted interval is about 21.74 ms. Steam's exact delivery
 behavior and its installed handler still need inspection.
 
-### The remapper also samples events at processing time
+### The removed delay-based remapper also sampled events at processing time
 
-[`remap_mouse_with_delay.py`](../remap_mouse_with_delay.py) checks `monotonic()` when
-processing each eligible movement report. The first click passes immediately;
-only generated clicks restart its timer. It drops early attempts and doesn't
-schedule a click for the instant the delay expires. The next eligible report
-must arrive and be processed first.
+The removed `remap_mouse_with_delay.py` checked `monotonic()` when
+processing each eligible movement report. The first click passed immediately;
+only generated clicks restarted its timer. It dropped early attempts and didn't
+schedule a click for the instant the delay expired. The next eligible report
+had to arrive and be processed first.
 
 The raw measurements show a consistent excess over the requested minimum:
 
@@ -203,8 +208,9 @@ the distribution of report intervals. In particular, 680/1,000 is an output/inpu
 ratio, not the fraction of adjacent reports separated by less than 1 ms: the
 comparison is against the last accepted report, not every preceding report.
 
-Fractional milliseconds already work, for example `--min-delay 3.8` for 3,800
-microseconds. Changing the CLI's units alone wouldn't improve clock precision.
+The removed script accepted fractional milliseconds, for example `--min-delay 3.8`
+for 3,800 microseconds. Changing the CLI's units alone wouldn't have improved clock
+precision. This option is not available in the current remapper.
 
 ### Visual lag and sound are separate leads
 
@@ -242,7 +248,7 @@ for quirk details.
 
 Keep these measurements separate:
 
-- `device_diagnostics/show_cps.py` counts completed left clicks from all watched
+- `diagonstics/show_cps.py` counts completed left clicks from all watched
   mice before libinput and application filtering. It doesn't measure game acceptance.
 - The game's click counter measures accepted clicks. Compare its change over an
   independently timed interval; cookies earned can include passive production.
