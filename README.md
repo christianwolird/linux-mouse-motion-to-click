@@ -127,6 +127,9 @@ A column of counts and percentages groups intervals rounded to the nearest
 0.01 ms: `<=3.85`, `3.86`, `3.87`, through `4.14`, and `>=4.15` ms. Statistics
 use unrounded intervals. Ctrl+C cancels; lost input stops the trial with an error.
 
+See the [250 Hz click interval trial](docs/click_interval_variance.md) for measured
+results and their relevance to Cookie Clicker's 4 ms threshold.
+
 ## Development checks
 
 The [`tests/`](tests/) check the remapper using fake devices and the variance
